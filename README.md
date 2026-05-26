@@ -1,13 +1,6 @@
 # Distributed URL Shortener
 
-A resume-ready distributed systems project that turns long URLs into compact short links, routes traffic across multiple API nodes, and uses Redis caching plus a shared database for consistency.
-
-## Why this project works well for an SDE resume
-
-- Designed a distributed URL shortener using FastAPI, PostgreSQL, Redis, and Nginx load balancing.
-- Implemented Snowflake-style unique ID generation and Base62 encoding to create collision-resistant short codes across nodes.
-- Added shared persistence, cache-backed reads, redirect tracking, and click analytics endpoints.
-- Containerized the system with Docker Compose and validated core flows with automated API tests.
+A distributed URL shortener built with FastAPI, PostgreSQL, Redis, and Nginx. The system converts long URLs into compact short links, distributes traffic across multiple API nodes, and uses shared storage plus caching for consistency and performance.
 
 ## Architecture
 
@@ -16,49 +9,72 @@ A resume-ready distributed systems project that turns long URLs into compact sho
 `FastAPI nodes <-> Redis`
 
 - `api1` and `api2` simulate horizontally scaled application nodes.
-- PostgreSQL is the source of truth for URL mappings and analytics counters.
+- PostgreSQL stores URL mappings, expiration data, and click analytics.
 - Redis caches hot URL lookups to reduce repeated database reads.
-- Each node gets a distinct `WORKER_ID`, which feeds a Snowflake-style ID generator.
+- Each API node uses a distinct `WORKER_ID` for Snowflake-style distributed ID generation.
 
 ## Features
 
-- Create short URLs with generated codes
-- Optional custom aliases
-- Expiration windows for links
-- Redirect endpoint
-- Click counting and usage stats
-- Health endpoint that exposes node identity
-- Multi-node local deployment with load balancing
+- Generate short URLs for long links
+- Support optional custom aliases
+- Configure expiration for shortened links
+- Redirect short links to original URLs
+- Track click counts and access metadata
+- Expose per-link analytics through a stats endpoint
+- Run multiple API nodes behind an Nginx load balancer
 
-## API
+## Tech Stack
+
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- Redis
+- Nginx
+- Docker Compose
+- Pytest
+
+## API Endpoints
 
 ### `POST /api/v1/shorten`
+
+Creates a shortened URL.
 
 Request:
 
 ```json
 {
   "url": "https://example.com/some/very/long/path",
-  "custom_alias": "resume-demo",
+  "custom_alias": "demo-link",
   "expires_in_days": 30
+}
+```
+
+Response:
+
+```json
+{
+  "short_code": "abc123",
+  "short_url": "http://localhost:8080/abc123",
+  "original_url": "https://example.com/some/very/long/path",
+  "expires_at": "2026-06-26T12:00:00"
 }
 ```
 
 ### `GET /{short_code}`
 
-Redirects to the original URL and increments click count.
+Redirects to the original URL and increments the click count.
 
 ### `GET /api/v1/stats/{short_code}`
 
-Returns metadata and click analytics for a short code.
+Returns stored metadata and analytics for a short code.
 
 ### `GET /health`
 
-Returns service health plus the current node ID.
+Returns service health information and the current node ID.
 
-## Run locally
+## Local Development
 
-### Option 1: Python
+### Run with Python
 
 ```bash
 python -m venv .venv
@@ -68,30 +84,26 @@ copy .env.example .env
 uvicorn app.main:app --reload
 ```
 
-### Option 2: Docker Compose
+The API will be available at `http://localhost:8000`, and the interactive docs will be available at `http://localhost:8000/docs`.
+
+### Run with Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Then open `http://localhost:8080/docs`.
+The load-balanced API will be available at `http://localhost:8080`, and the interactive docs will be available at `http://localhost:8080/docs`.
 
-## Test
+## Environment Variables
+
+- `BASE_URL`: Base URL used when constructing shortened links
+- `DATABASE_URL`: Database connection string
+- `REDIS_URL`: Redis connection string
+- `WORKER_ID`: Unique numeric node identifier for distributed ID generation
+- `NODE_ID`: Human-readable node name exposed by the health endpoint
+
+## Testing
 
 ```bash
 pytest
 ```
-
-## How to explain the distributed aspect in interviews
-
-- Multiple stateless API nodes sit behind Nginx, so traffic can be spread horizontally.
-- Redis caches frequent lookups, reducing latency and database pressure.
-- PostgreSQL acts as the durable shared store so all nodes see the same mappings.
-- Worker-specific Snowflake IDs avoid coordination-heavy primary key generation at the app layer.
-
-## Strong resume bullets
-
-- Built a distributed URL shortener with FastAPI, PostgreSQL, Redis, and Nginx, supporting horizontal scaling across multiple API nodes.
-- Implemented Snowflake-inspired ID generation and Base62 encoding to create globally unique short links with low collision risk.
-- Improved read efficiency using Redis caching and exposed analytics endpoints for click tracking and operational visibility.
-- Containerized the platform with Docker Compose and added automated tests for URL creation, redirection, and stats accuracy.
